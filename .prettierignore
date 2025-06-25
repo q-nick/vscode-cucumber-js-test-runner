@@ -1,0 +1,9 @@
+# Ignore artifacts:
+build
+dist
+out
+coverage
+node_modules
+.vscode-test
+.cursor-test
+*.log 

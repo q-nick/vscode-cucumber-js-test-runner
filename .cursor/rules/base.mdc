@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+- Zawsze używaj klamer przy warunkach, pętlach, funkcjach w kodzie, ale nie wymuszaj ich w arrow functions.
+- W typescript nie używaj typu any i as.
+- nie usuwaj komentarzy z kodu

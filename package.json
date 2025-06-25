@@ -1,0 +1,76 @@
+{
+  "name": "cucumber-js-test-runner",
+  "displayName": "Cucumber.js Test Runner",
+  "description": "Run and debug your Cucumber.js scenarios directly in the Visual Studio Code editor. This extension provides seamless integration for running tests, viewing results, and streamlining your BDD workflow.",
+  "author": "Paweł Stefański (q-nick)",
+  "license": "GPL-3.0-or-later",
+  "publisher": "q-nick",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/q-nick/vscode-cucumber-js-test-runner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/q-nick/vscode-cucumber-js-test-runner/issues"
+  },
+  "homepage": "https://github.com/q-nick/vscode-cucumber-js-test-runner#readme",
+  "version": "0.0.2",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "keywords": [
+    "cucumber",
+    "gherkin",
+    "test",
+    "runner",
+    "bdd"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cucumber-js-test-runner.runTest",
+        "title": "Run Cucumber.js Test"
+      },
+      {
+        "command": "cucumber-js-test-runner.runAllTests",
+        "title": "Run All Cucumber.js Tests"
+      },
+      {
+        "command": "cucumber-js-test-runner.refreshTests",
+        "title": "Refresh Cucumber.js Tests"
+      }
+    ],
+    "configuration": {
+      "title": "Cucumber.js Test Runner",
+      "properties": {
+        "cucumberJsTestRunner.featuresPath": {
+          "type": "string",
+          "default": "features",
+          "description": "Path to Cucumber.js features directory"
+        }
+      }
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/vscode": "^1.88.0"
+  },
+  "dependencies": {
+    "typescript": "^5.4.5",
+    "zod": "^3.23.8"
+  }
+}
