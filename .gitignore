@@ -16,7 +16,7 @@ yarn-error.log*
 
 # VSCode
 .vscode/
-
+vscode-*
 # OS
 .DS_Store
 Thumbs.db
@@ -26,4 +26,4 @@ coverage/
 
 # Env files
 .env
-.env.* 
+.env.*

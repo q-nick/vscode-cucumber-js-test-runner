@@ -1,9 +1,6 @@
 import { Pickle, GherkinDocument, Step, TestCase, TestCaseStarted } from './zodSchemas';
-import { z } from 'zod';
 import * as vscode from 'vscode';
 import { buildNodeId } from './testHierarchyBuilder';
-
-declare type TestCaseStep = z.infer<typeof import('./zodSchemas').TestCaseStepSchema>;
 
 export class CucumberTestRun {
   private gherkinDocuments: GherkinDocument[] = [];

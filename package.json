@@ -13,9 +13,9 @@
     "url": "https://github.com/q-nick/vscode-cucumber-js-test-runner/issues"
   },
   "homepage": "https://github.com/q-nick/vscode-cucumber-js-test-runner#readme",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "engines": {
-    "vscode": "^1.88.0"
+    "vscode": "^1.59.0"
   },
   "categories": [
     "Testing"
@@ -67,10 +67,10 @@
   },
   "devDependencies": {
     "@types/node": "18.x",
-    "@types/vscode": "^1.88.0"
+    "typescript": "^5.4.5",
+    "@types/vscode": "^1.59.0"
   },
   "dependencies": {
-    "typescript": "^5.4.5",
     "zod": "^3.23.8"
   }
 }
