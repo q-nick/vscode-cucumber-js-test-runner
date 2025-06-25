@@ -176,10 +176,6 @@ export type TestCaseStarted = z.infer<typeof TestCaseStartedSchema>;
 
 export const TestCaseFinishedSchema = z
   .object({
-    // result: TestResultSchema.optional(),
-    // attempt: z.number().optional(),
-    // id: z.string().optional(),
-    // workerId: z.string().optional(),
     testCaseStartedId: z.string(),
     willBeRetried: z.boolean().optional(),
     timestamp: TimestampSchema,

@@ -3,7 +3,7 @@ import * as path from 'path';
 import { CucumberRunner, CucumberRunnerEvent } from './CucumberRunner';
 import { buildTestHierarchy } from './testHierarchyBuilder';
 import { GherkinDocument, TestStepStatus, TestStepFinished } from './zodSchemas';
-import { logTestOutput } from './utils';
+import { logTestOutput, timestampToMilliseconds } from './utils';
 import { TestTreeManager } from './TestTreeManager';
 import { CucumberTestRun } from './CucumberTestRun';
 
@@ -141,7 +141,7 @@ export class CucumberJsTestController {
     }
 
     if (event.type === 'testCaseFinished') {
-      const { testCaseStartedId } = event.data;
+      const { testCaseStartedId, timestamp } = event.data;
       console.log('[FLOW] [CASE]', testCaseStartedId);
       const test = cucumberTestRun.getTestByCaseStartedId(testCaseStartedId!);
       const stepEvents = testStepResults.get(testCaseStartedId!) || [];
@@ -159,11 +159,17 @@ export class CucumberJsTestController {
         scenarioStatus = 'FAILED';
       }
 
+      // Szukamy testCaseStarted w cucumberTestRun
+      const testCaseStarted = cucumberTestRun.getTestCaseStartedById(testCaseStartedId);
+      const startMs = timestampToMilliseconds(testCaseStarted.timestamp);
+      const endMs = timestampToMilliseconds(timestamp);
+      const duration = endMs - startMs;
+      console.log('[duration]', duration);
       if (test) {
         if (scenarioStatus === 'PASSED') {
-          run.passed(test);
+          run.passed(test, duration);
         } else if (scenarioStatus === 'FAILED') {
-          run.failed(test, []);
+          run.failed(test, [], duration);
         } else if (scenarioStatus === 'SKIPPED') {
           run.skipped(test);
         }

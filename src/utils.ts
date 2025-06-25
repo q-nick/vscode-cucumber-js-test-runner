@@ -36,3 +36,10 @@ export function safeJsonParse(str: string): object | undefined {
     return undefined;
   }
 }
+
+/**
+ * Zamienia timestamp w formacie { seconds, nanos } na milisekundy
+ */
+export function timestampToMilliseconds(timestamp: { seconds: number; nanos: number }): number {
+  return timestamp.seconds * 1000 + Math.floor(timestamp.nanos / 1_000_000);
+}

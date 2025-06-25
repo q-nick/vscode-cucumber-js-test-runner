@@ -5,6 +5,7 @@ import { logTestOutput } from './utils';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CucumberEvent, parseCucumberEvent } from './zodSchemas';
+import { cleanAndCopyCucumberConfigAsync } from './CucumberConfigManager';
 
 export type CucumberRunnerEvent =
   | CucumberEvent
@@ -79,13 +80,15 @@ export class CucumberRunner {
     run?: vscode.TestRun,
     eventCallback?: (event: CucumberRunnerEvent) => void
   ): Promise<number> {
-    const tmpFileName = '.cucumber-js-test-runner-config.js';
-    const tmpConfigAbsolutePath = path.join(this.rootPath, tmpFileName);
-    if (!fs.existsSync(tmpConfigAbsolutePath)) {
-      fs.writeFileSync(tmpConfigAbsolutePath, 'module.exports = {}', 'utf8');
+    // Wygeneruj nowy config na podstawie istniejącego
+    const tmpConfigPath = await cleanAndCopyCucumberConfigAsync(this.rootPath);
+
+    const fullArgs = [...args];
+
+    if (tmpConfigPath) {
+      fullArgs.push('--config', path.basename(tmpConfigPath));
     }
 
-    const fullArgs = [...args, '--config', tmpFileName];
     return this.runCucumber(fullArgs, run, eventCallback);
   }
 }

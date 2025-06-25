@@ -66,11 +66,13 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "18.x",
-    "typescript": "^5.4.5",
-    "@types/vscode": "^1.59.0"
+    "@types/vscode": "^1.59.0",
+    "typescript": "^5.4.5"
   },
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "zod": "^3.23.8"
   }
 }

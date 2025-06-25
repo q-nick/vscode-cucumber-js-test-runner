@@ -151,4 +151,16 @@ export class CucumberTestRun {
     }
     throw new Error(`Could not find test for testCaseStartedId: ${testCaseStartedId}`);
   }
+
+  /**
+   * Zwraca TestCaseStarted na podstawie testCaseStartedId
+   * Rzuca błąd jeśli nie znajdzie
+   */
+  getTestCaseStartedById(testCaseStartedId: string): TestCaseStarted {
+    const testCaseStarted = this.testCasesStarted.find((tc) => tc.id === testCaseStartedId);
+    if (!testCaseStarted) {
+      throw new Error(`Nie znaleziono testCaseStarted o id: ${testCaseStartedId}`);
+    }
+    return testCaseStarted;
+  }
 }
