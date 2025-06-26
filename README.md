@@ -39,8 +39,12 @@ With this extension, you can leverage the full power of Gherkin for expressive, 
 
 ## ⚙️ Requirements
 
+- VS Code version 1.59.0 or higher
 - Node.js installed on your system
-- Cucumber.js installed in your project (`npm install @cucumber/cucumber`)
+- Cucumber.js (version 7.x or newer) installed in your project (`npm install @cucumber/cucumber`)
+
+> **Compatibility:**
+> This extension supports Cucumber.js version 7.x and newer, relying on the official Gherkin AST/messages format introduced in Cucumber.js 7.x.
 
 ## 🔧 How It Works & Configuration
 
@@ -62,12 +66,6 @@ You do **not** need to create a Cucumber.js configuration file yourself. The ext
    - Run all tests
    - View test results and execution time
    - See test output
-
-## 🛠️ Development
-
-1. Clone this repository
-2. Run `npm install`
-3. Press <kbd>F5</kbd> to start debugging in VS Code
 
 ## 📄 License
 
