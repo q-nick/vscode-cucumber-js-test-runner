@@ -1,7 +1,7 @@
 # vscode-cucumber-js-test-runner
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cucumber/cucumber/main/images/cucumber-logo.svg" alt="Cucumber.js" width="120"/>
+  <img src="https://raw.githubusercontent.com/cucumber/cucumber/main/images/cucumber-logo.png" alt="Cucumber.js" width="120"/>
 </p>
 
 <p align="center">
