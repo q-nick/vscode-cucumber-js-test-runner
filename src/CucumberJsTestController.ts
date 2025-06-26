@@ -6,6 +6,7 @@ import { GherkinDocument, TestStepStatus, TestStepFinished } from './zodSchemas'
 import { logRun, timestampToMilliseconds } from './utils';
 import { TestTreeManager } from './TestTreeManager';
 import { CucumberTestRun } from './CucumberTestRun';
+import { CucumberRunnerEventHandler } from './CucumberRunnerEventHandler';
 
 export class CucumberJsTestController {
   public readonly vscodeTestController: vscode.TestController;
@@ -75,126 +76,6 @@ export class CucumberJsTestController {
     return args;
   }
 
-  private handleTestRunEvent(
-    event: CucumberRunnerEvent,
-    cucumberTestRun: CucumberTestRun,
-    testStepResults: Map<string, TestStepFinished[]>,
-    run: vscode.TestRun,
-    token: vscode.CancellationToken
-  ) {
-    if (token.isCancellationRequested) {
-      run.end();
-      return;
-    }
-
-    if (event.type === 'stdout') {
-      logRun(event.data, run);
-    }
-
-    if (event.type === 'gherkinDocument') {
-      cucumberTestRun.addGherkinDocument(event.data);
-    }
-
-    if (event.type === 'pickle') {
-      cucumberTestRun.addPickle(event.data);
-    }
-
-    if (event.type === 'testCase') {
-      cucumberTestRun.addTestCase(event.data);
-    }
-
-    if (event.type === 'testCaseStarted') {
-      cucumberTestRun.addTestCaseStarted(event.data);
-      const test = cucumberTestRun.getTestByCaseStartedId(event.data.id);
-      if (test) {
-        const feature = cucumberTestRun.getFeatureByTestCaseStartedId(event.data.id);
-        logRun(
-          `🚀 (started) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-          run
-        );
-      }
-    }
-
-    if (event.type === 'testStepFinished') {
-      const { testCaseStartedId, testStepResult, testStepId } = event.data;
-      if (!testStepResults.has(testCaseStartedId)) {
-        testStepResults.set(testCaseStartedId, []);
-      }
-      testStepResults.get(testCaseStartedId)!.push(event.data);
-      // Obsługa statusowania pojedynczego kroku (UNDEFINED)
-      if (testStepResult.status === 'UNDEFINED') {
-        const testCase = cucumberTestRun.getTestCaseByTestCaseStartedId(testCaseStartedId);
-        const step = cucumberTestRun.findStepInGherkinDocumentByTestCaseStartedId(
-          testCaseStartedId,
-          testStepId
-        );
-        const test = cucumberTestRun.getTestByCaseId(testCase.id);
-        if (step && test.uri) {
-          const line = step.location.line - 1;
-          const baseColumn = step.location.column ? step.location.column - 1 : 0;
-          const column = baseColumn + step.keyword.length;
-          const diagnostic = new vscode.Diagnostic(
-            new vscode.Range(line, column, line, column + step.text.length),
-            testStepResult.message || testStepResult.status,
-            vscode.DiagnosticSeverity.Error
-          );
-          const diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
-          diagnostics.set(test.uri, [diagnostic]);
-        }
-      }
-    }
-
-    if (event.type === 'testCaseFinished') {
-      const { testCaseStartedId, timestamp } = event.data;
-
-      const test = cucumberTestRun.getTestByCaseStartedId(testCaseStartedId);
-      const stepEvents = testStepResults.get(testCaseStartedId) || [];
-      let scenarioStatus: TestStepStatus = 'PASSED';
-      const testCaseStepStatuses = stepEvents.map((e) => e.testStepResult.status);
-
-      if (testCaseStepStatuses.includes('FAILED')) {
-        scenarioStatus = 'FAILED';
-      } else if (testCaseStepStatuses.includes('SKIPPED')) {
-        scenarioStatus = 'SKIPPED';
-      } else if (testCaseStepStatuses.includes('AMBIGUOUS')) {
-        scenarioStatus = 'FAILED';
-      } else if (testCaseStepStatuses.includes('PENDING')) {
-        scenarioStatus = 'SKIPPED';
-      } else if (testCaseStepStatuses.includes('UNDEFINED')) {
-        scenarioStatus = 'FAILED';
-      }
-
-      // Szukamy testCaseStarted w cucumberTestRun
-      const testCaseStarted = cucumberTestRun.getTestCaseStartedById(testCaseStartedId);
-      const startMs = timestampToMilliseconds(testCaseStarted.timestamp);
-      const endMs = timestampToMilliseconds(timestamp);
-      const duration = endMs - startMs;
-
-      if (test) {
-        const feature = cucumberTestRun.getFeatureByTestCaseStartedId(testCaseStartedId);
-        if (scenarioStatus === 'FAILED') {
-          logRun(
-            `🔴 (failed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-            run
-          );
-          run.failed(test, [], duration);
-        } else if (scenarioStatus === 'SKIPPED') {
-          logRun(
-            `⚪ (skipped) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-            run
-          );
-          run.skipped(test);
-        } else if (scenarioStatus === 'PASSED') {
-          logRun(
-            `🟢 (passed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-            run
-          );
-          run.passed(test, duration);
-        }
-      }
-    }
-  }
-
   public async runTests(
     request: vscode.TestRunRequest,
     token: vscode.CancellationToken
@@ -214,18 +95,16 @@ export class CucumberJsTestController {
 
     testsToRun.forEach((test) => run.started(test));
     const cucumberTestRun = new CucumberTestRun(testsToRun);
-    const testStepResults = new Map<string, TestStepFinished[]>();
 
-    const eventHandler = (event: CucumberRunnerEvent) =>
-      this.handleTestRunEvent(event, cucumberTestRun, testStepResults, run, token);
+    const eventHandlerInstance = new CucumberRunnerEventHandler(cucumberTestRun, run, token);
 
     const args = this.buildCucumberArgs(request);
     const useTmpConfig = args.length > 0;
 
     if (useTmpConfig) {
-      await this.cucumberRunner.runCucumberWithTmpConfig(args, run, eventHandler);
+      await this.cucumberRunner.runCucumberWithTmpConfig(args, run, eventHandlerInstance.handle);
     } else {
-      await this.cucumberRunner.runCucumber(args, run, eventHandler);
+      await this.cucumberRunner.runCucumber(args, run, eventHandlerInstance.handle);
     }
     run.end();
   }

@@ -4,5 +4,12 @@
 !package.json
 !README.md
 !LICENSE
-!node_modules/zod/dist/cjs/**
 !node_modules/zod/package.json
+!node_modules/zod/dist/cjs/**
+!node_modules/js-yaml/package.json
+!node_modules/js-yaml/index.js
+!node_modules/js-yaml/dist/**
+!node_modules/js-yaml/lib/**
+!node_modules/argparse/package.json
+!node_modules/argparse/argparse.js
+!node_modules/argparse/lib/**

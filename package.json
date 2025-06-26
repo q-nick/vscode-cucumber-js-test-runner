@@ -13,7 +13,7 @@
     "url": "https://github.com/q-nick/vscode-cucumber-js-test-runner/issues"
   },
   "homepage": "https://github.com/q-nick/vscode-cucumber-js-test-runner#readme",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.59.0"
   },

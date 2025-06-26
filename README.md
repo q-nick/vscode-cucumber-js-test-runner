@@ -1,5 +1,15 @@
 # vscode-cucumber-js-test-runner
 
+<!-- ⭐️⭐️⭐️ GIVE US A STAR ⭐️⭐️⭐️ -->
+<p align="center">
+  <a href="https://github.com/q-nick/vscode-cucumber-js-test-runner" target="_blank" style="text-decoration:none;">
+    <img src="https://img.shields.io/github/stars/q-nick/vscode-cucumber-js-test-runner?style=social" alt="GitHub stars"/>
+    <br/>
+    <span style="font-size:1.3em; font-weight:bold; color:#ffb300;">⭐️ If you like this extension, please consider giving it a star on GitHub! ⭐️</span>
+  </a>
+</p>
+<!-- END STAR SECTION -->
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/cucumber/cucumber/main/images/cucumber-logo.png" alt="Cucumber.js" width="120"/>
 </p>
@@ -36,6 +46,10 @@ This extension fully supports the Gherkin language and all its advanced features
 - **Multilingual**: Gherkin keywords in multiple languages
 
 With this extension, you can leverage the full power of Gherkin for expressive, maintainable, and scalable BDD specifications.
+
+## 🚀 Highly Optimized for Running Single Scenarios
+
+This extension is highly optimized for running individual scenarios directly from the editor. You do not need to use special tags like `@focus` or `@skip` to isolate or exclude scenarios—just use the built-in test runner UI to run exactly the scenario you want, instantly.
 
 ## ⚙️ Requirements
 
