@@ -1,4 +1,4 @@
-import { Pickle, GherkinDocument, Step, TestCase, TestCaseStarted } from './zodSchemas';
+import { Pickle, GherkinDocument, Step, TestCase, TestCaseStarted, Feature } from './zodSchemas';
 import * as vscode from 'vscode';
 import { buildNodeId } from './testHierarchyBuilder';
 
@@ -107,10 +107,7 @@ export class CucumberTestRun {
    */
   getTestCaseByTestCaseStartedId(testCaseStartedId: string): TestCase {
     const testCaseStarted = this.testCasesStarted.find((tc) => tc.id === testCaseStartedId);
-    console.log('getTestCaseByTestCaseStartedId', {
-      testCaseStartedId,
-      testCasesStarted: this.testCasesStarted,
-    });
+
     if (!testCaseStarted) {
       throw new Error(`Nie znaleziono testCaseStarted o id: ${testCaseStartedId}`);
     }
@@ -162,5 +159,28 @@ export class CucumberTestRun {
       throw new Error(`Nie znaleziono testCaseStarted o id: ${testCaseStartedId}`);
     }
     return testCaseStarted;
+  }
+
+  getFeatureByTestCaseStartedId(testCaseStartedId: string): Feature {
+    const testCaseStarted = this.testCasesStarted.find((tc) => tc.id === testCaseStartedId);
+    if (!testCaseStarted) {
+      throw new Error(`Nie znaleziono testCaseStarted o id: ${testCaseStartedId}`);
+    }
+    const testCase = this.testCases.find((tc) => tc.id === testCaseStarted.testCaseId);
+    if (!testCase) {
+      throw new Error(`Nie znaleziono testCase o id: ${testCaseStarted.testCaseId}`);
+    }
+    const pickle = this.pickles.find((p) => p.id === testCase.pickleId);
+    if (!pickle) {
+      throw new Error(`Nie znaleziono pickle o id: ${testCase.pickleId}`);
+    }
+    const gherkinDoc = this.gherkinDocuments.find((doc) => doc.uri === pickle.uri);
+    if (!gherkinDoc) {
+      throw new Error(`Nie znaleziono GherkinDocument o uri: ${pickle.uri}`);
+    }
+    if (!gherkinDoc.feature) {
+      throw new Error(`GherkinDocument o uri: ${pickle.uri} nie zawiera feature`);
+    }
+    return gherkinDoc.feature;
   }
 }

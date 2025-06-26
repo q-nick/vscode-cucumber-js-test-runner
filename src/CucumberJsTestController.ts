@@ -3,7 +3,7 @@ import * as path from 'path';
 import { CucumberRunner, CucumberRunnerEvent } from './CucumberRunner';
 import { buildTestHierarchy } from './testHierarchyBuilder';
 import { GherkinDocument, TestStepStatus, TestStepFinished } from './zodSchemas';
-import { logTestOutput, timestampToMilliseconds } from './utils';
+import { logRun, timestampToMilliseconds } from './utils';
 import { TestTreeManager } from './TestTreeManager';
 import { CucumberTestRun } from './CucumberTestRun';
 
@@ -88,7 +88,7 @@ export class CucumberJsTestController {
     }
 
     if (event.type === 'stdout') {
-      logTestOutput(event.data, undefined, '[testrun]');
+      logRun(event.data, run);
     }
 
     if (event.type === 'gherkinDocument') {
@@ -105,6 +105,14 @@ export class CucumberJsTestController {
 
     if (event.type === 'testCaseStarted') {
       cucumberTestRun.addTestCaseStarted(event.data);
+      const test = cucumberTestRun.getTestByCaseStartedId(event.data.id);
+      if (test) {
+        const feature = cucumberTestRun.getFeatureByTestCaseStartedId(event.data.id);
+        logRun(
+          `🚀 (started) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+          run
+        );
+      }
     }
 
     if (event.type === 'testStepFinished') {
@@ -115,38 +123,35 @@ export class CucumberJsTestController {
       testStepResults.get(testCaseStartedId)!.push(event.data);
       // Obsługa statusowania pojedynczego kroku (UNDEFINED)
       if (testStepResult.status === 'UNDEFINED') {
-        try {
-          const testCase = cucumberTestRun.getTestCaseByTestCaseStartedId(testCaseStartedId);
-          const step = cucumberTestRun.findStepInGherkinDocumentByTestCaseStartedId(
-            testCaseStartedId,
-            testStepId
+        const testCase = cucumberTestRun.getTestCaseByTestCaseStartedId(testCaseStartedId);
+        const step = cucumberTestRun.findStepInGherkinDocumentByTestCaseStartedId(
+          testCaseStartedId,
+          testStepId
+        );
+        const test = cucumberTestRun.getTestByCaseId(testCase.id);
+        if (step && test.uri) {
+          const line = step.location.line - 1;
+          const baseColumn = step.location.column ? step.location.column - 1 : 0;
+          const column = baseColumn + step.keyword.length;
+          const diagnostic = new vscode.Diagnostic(
+            new vscode.Range(line, column, line, column + step.text.length),
+            testStepResult.message || testStepResult.status,
+            vscode.DiagnosticSeverity.Error
           );
-          const test = cucumberTestRun.getTestByCaseId(testCase?.id);
-          if (step && test) {
-            const line = step.location.line - 1;
-            const baseColumn = step.location.column ? step.location.column - 1 : 0;
-            const column = baseColumn + step.keyword.length;
-            const diagnostic = new vscode.Diagnostic(
-              new vscode.Range(line, column, line, column + step.text.length),
-              testStepResult.message || testStepResult.status,
-              vscode.DiagnosticSeverity.Error
-            );
-            const diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
-            diagnostics.set(test.uri!, [diagnostic]);
-          }
-        } catch (err) {
-          console.error('Error creating diagnostic for UNDEFINED step:', err);
+          const diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
+          diagnostics.set(test.uri, [diagnostic]);
         }
       }
     }
 
     if (event.type === 'testCaseFinished') {
       const { testCaseStartedId, timestamp } = event.data;
-      console.log('[FLOW] [CASE]', testCaseStartedId);
-      const test = cucumberTestRun.getTestByCaseStartedId(testCaseStartedId!);
-      const stepEvents = testStepResults.get(testCaseStartedId!) || [];
+
+      const test = cucumberTestRun.getTestByCaseStartedId(testCaseStartedId);
+      const stepEvents = testStepResults.get(testCaseStartedId) || [];
       let scenarioStatus: TestStepStatus = 'PASSED';
       const testCaseStepStatuses = stepEvents.map((e) => e.testStepResult.status);
+
       if (testCaseStepStatuses.includes('FAILED')) {
         scenarioStatus = 'FAILED';
       } else if (testCaseStepStatuses.includes('SKIPPED')) {
@@ -164,14 +169,27 @@ export class CucumberJsTestController {
       const startMs = timestampToMilliseconds(testCaseStarted.timestamp);
       const endMs = timestampToMilliseconds(timestamp);
       const duration = endMs - startMs;
-      console.log('[duration]', duration);
+
       if (test) {
-        if (scenarioStatus === 'PASSED') {
-          run.passed(test, duration);
-        } else if (scenarioStatus === 'FAILED') {
+        const feature = cucumberTestRun.getFeatureByTestCaseStartedId(testCaseStartedId);
+        if (scenarioStatus === 'FAILED') {
+          logRun(
+            `🔴 (failed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+            run
+          );
           run.failed(test, [], duration);
         } else if (scenarioStatus === 'SKIPPED') {
+          logRun(
+            `⚪ (skipped) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+            run
+          );
           run.skipped(test);
+        } else if (scenarioStatus === 'PASSED') {
+          logRun(
+            `🟢 (passed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+            run
+          );
+          run.passed(test, duration);
         }
       }
     }

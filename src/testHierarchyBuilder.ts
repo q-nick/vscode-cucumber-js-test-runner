@@ -10,7 +10,8 @@ export interface HierarchyNode {
 
 export function buildNodeId(parentId: string, name: string): string {
   const safeName = name.replace(/\s+/g, '_');
-  return `${parentId}/${safeName}`;
+  const normalizedParentId = parentId.replace(/\\/g, '/');
+  return normalizedParentId === 'root' ? safeName : `${normalizedParentId}/${safeName}`;
 }
 
 export function buildTestHierarchy(gherkinDocuments: GherkinDocument[]): HierarchyNode {
@@ -25,11 +26,12 @@ export function buildTestHierarchy(gherkinDocuments: GherkinDocument[]): Hierarc
     }
 
     // Rozbij ścieżkę na foldery
-    const parts = uri.split(/[\\/]/);
+    const normalizedUri = uri.replace(/\\/g, '/');
+    const parts = normalizedUri.split('/');
     parts.pop(); // remove filename
     let currentPath = '';
     let parentNode = root;
-    let parentId = root.id;
+    let parentId = normalizedUri;
 
     for (const part of parts) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;

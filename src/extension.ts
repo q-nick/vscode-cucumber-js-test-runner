@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import { CucumberJsTestController } from './CucumberJsTestController';
+import { logChannel, logDev } from './utils';
 
-export function activate(context: vscode.ExtensionContext) {
-  console.log('cucumber-js Test Runner is now active!');
+export async function activate(context: vscode.ExtensionContext) {
+  logDev('vscode-cucumber-js-test-runner init');
+  logChannel('vscode-cucumber-js-test-runner init');
 
   const controller = new CucumberJsTestController();
 
@@ -43,7 +45,10 @@ export function activate(context: vscode.ExtensionContext) {
   featureWatcher.onDidDelete(() => controller.discoverTests());
 
   controller.initializeWorkspace();
-  controller.discoverTests();
+  await controller.discoverTests();
+
+  logDev('vscode-cucumber-js-test-runner activated');
+  logChannel('vscode-cucumber-js-test-runner activated');
 }
 
 export function deactivate() {}

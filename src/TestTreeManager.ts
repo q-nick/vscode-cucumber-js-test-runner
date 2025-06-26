@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { HierarchyNode } from './testHierarchyBuilder';
-import { logTestOutput } from './utils';
+import { logDev } from './utils';
 
 export class TestTreeManager {
   private testController: vscode.TestController;
@@ -39,7 +39,8 @@ export class TestTreeManager {
       ? vscode.Uri.file(path.isAbsolute(node.uri) ? node.uri : path.join(this.rootPath, node.uri))
       : vscode.Uri.file(this.rootPath);
 
-    console.log('[id] ' + node.id);
+    logDev('[id] ' + node.id);
+
     const item = this.testController.createTestItem(node.id, node.name, itemUri);
     if (node.line) {
       item.range = new vscode.Range(

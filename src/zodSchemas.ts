@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logDev } from './utils';
 
 const LocationSchema = z
   .object({
@@ -326,7 +327,68 @@ export const AttachmentSchema = z
   .strict();
 export type Attachment = z.infer<typeof AttachmentSchema>;
 
+const SourceSchema = z
+  .object({
+    data: z.string(),
+    uri: z.string(),
+    mediaType: z.string(),
+  })
+  .strict();
+export type Source = z.infer<typeof SourceSchema>;
+
 const StdoutDataSchema = z.string();
+
+const MetaSchema = z
+  .object({
+    protocolVersion: z.string(),
+    implementation: z.object({
+      name: z.string(),
+      version: z.string(),
+    }),
+    cpu: z.object({
+      name: z.string(),
+    }),
+    os: z.object({
+      name: z.string(),
+      version: z.string(),
+    }),
+    runtime: z.object({
+      name: z.string(),
+      version: z.string(),
+    }),
+  })
+  .strict();
+export type Meta = z.infer<typeof MetaSchema>;
+
+const StepDefinitionSchema = z
+  .object({
+    id: z.string(),
+    pattern: z.object({
+      source: z.string(),
+      type: z.string(),
+    }),
+    sourceReference: z.object({
+      uri: z.string(),
+      location: z.object({
+        line: z.number(),
+      }),
+    }),
+  })
+  .strict();
+export type StepDefinition = z.infer<typeof StepDefinitionSchema>;
+
+const HookSchema = z
+  .object({
+    id: z.string(),
+    sourceReference: z.object({
+      uri: z.string(),
+      location: z.object({
+        line: z.number(),
+      }),
+    }),
+  })
+  .strict();
+export type Hook = z.infer<typeof HookSchema>;
 
 export type CucumberEvent =
   | { type: 'gherkinDocument'; data: GherkinDocument }
@@ -339,7 +401,11 @@ export type CucumberEvent =
   | { type: 'testCaseFinished'; data: TestCaseFinished }
   | { type: 'pickle'; data: Pickle }
   | { type: 'testCase'; data: TestCase }
-  | { type: 'attachment'; data: Attachment };
+  | { type: 'attachment'; data: Attachment }
+  | { type: 'source'; data: Source }
+  | { type: 'meta'; data: Meta }
+  | { type: 'stepDefinition'; data: StepDefinition }
+  | { type: 'hook'; data: Hook };
 
 function parseWithZodCatch<T>(schema: z.ZodType<T>, value: unknown, typeName: string): T | null {
   try {
@@ -360,7 +426,6 @@ function parseWithZodCatch<T>(schema: z.ZodType<T>, value: unknown, typeName: st
 
 export function parseCucumberEvent(event: object | unknown[] | undefined): CucumberEvent | null {
   if (typeof event !== 'object' || event === null || Array.isArray(event)) {
-    console.log('[INVALID]', event);
     return null;
   }
 
@@ -448,6 +513,30 @@ export function parseCucumberEvent(event: object | unknown[] | undefined): Cucum
     const data = parseWithZodCatch(AttachmentSchema, event.attachment, 'AttachmentSchema');
     if (data) {
       result = { type: 'attachment', data };
+    }
+  } else if ('source' in event) {
+    const data = parseWithZodCatch(SourceSchema, event.source, 'SourceSchema');
+    if (data) {
+      result = { type: 'source', data };
+    }
+  } else if ('meta' in event) {
+    const data = parseWithZodCatch(MetaSchema, event.meta, 'MetaSchema');
+    if (data) {
+      result = { type: 'meta', data };
+    }
+  } else if ('stepDefinition' in event) {
+    const data = parseWithZodCatch(
+      StepDefinitionSchema,
+      event.stepDefinition,
+      'StepDefinitionSchema'
+    );
+    if (data) {
+      result = { type: 'stepDefinition', data };
+    }
+  } else if ('hook' in event) {
+    const data = parseWithZodCatch(HookSchema, event.hook, 'HookSchema');
+    if (data) {
+      result = { type: 'hook', data };
     }
   }
 

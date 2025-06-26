@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
-import { safeJsonParse } from './utils';
-import { logTestOutput } from './utils';
-import * as fs from 'fs';
+import { logChannel, logDev, logRun, safeJsonParse } from './utils';
 import * as path from 'path';
 import { CucumberEvent, parseCucumberEvent } from './zodSchemas';
 import { cleanAndCopyCucumberConfigAsync } from './CucumberConfigManager';
@@ -26,7 +24,9 @@ export class CucumberRunner {
   ): Promise<number> {
     const fullArgs = [...args, '--format', 'message'];
     return new Promise((resolve, reject) => {
-      logTestOutput('cucumber-js ' + fullArgs.join(' '), run, '[run]');
+      logDev('cucumber-js ' + fullArgs.join(' '));
+      logRun('cucumber-js ' + fullArgs.join(' '), run);
+
       const cucumberProcess = spawn('npx', ['cucumber-js', ...fullArgs], {
         cwd: this.rootPath,
         shell: true,
@@ -50,17 +50,18 @@ export class CucumberRunner {
           const cucumberEvent = parseCucumberEvent(parsedJson);
 
           if (cucumberEvent) {
-            logTestOutput(line, run, '[ccevent]');
+            logDev(cucumberEvent);
             fireEvent(cucumberEvent);
           } else {
-            logTestOutput(line, run, '[stdout]');
+            logRun(line, run);
           }
         }
       });
 
       cucumberProcess.stderr.on('data', (data) => {
         fireEvent({ type: 'stderr', data: data.toString() });
-        logTestOutput(data.toString(), run, '[stderr]');
+        logDev(data.toString());
+        logChannel(data.toString());
       });
 
       cucumberProcess.on('close', (code) => {
@@ -91,12 +92,4 @@ export class CucumberRunner {
 
     return this.runCucumber(fullArgs, run, eventCallback);
   }
-}
-
-export namespace CucumberRunner {
-  export type CucumberRunnerEvent =
-    | import('./zodSchemas').CucumberEvent
-    | { type: 'stderr'; data: string }
-    | { type: 'close'; data: number }
-    | { type: 'error'; data: Error };
 }

@@ -1,8 +1,8 @@
 {
   "name": "vscode-cucumber-js-test-runner",
-  "displayName": "VSCode Cucumber.js Test Runner",
+  "displayName": "Cucumber.js Test Runner",
   "description": "Run and debug your Cucumber.js scenarios directly in the Visual Studio Code editor. This extension provides seamless integration for running tests, viewing results, and streamlining your BDD workflow.",
-  "author": "Paweł Stefański (q-nick)",
+  "author": "Paweł Stefański",
   "license": "GPL-3.0-or-later",
   "publisher": "q-nick",
   "repository": {
@@ -13,7 +13,7 @@
     "url": "https://github.com/q-nick/vscode-cucumber-js-test-runner/issues"
   },
   "homepage": "https://github.com/q-nick/vscode-cucumber-js-test-runner#readme",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "engines": {
     "vscode": "^1.59.0"
   },
