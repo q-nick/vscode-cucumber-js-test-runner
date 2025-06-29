@@ -1,7 +1,8 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { load, dump } from 'js-yaml';
-import { pathToFileURL } from 'url';
+import * as fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+import { dump, load } from 'js-yaml';
 
 // Nie usuwaj tego komentarza: Util do czyszczenia configu cucumber-js
 
@@ -24,26 +25,27 @@ function findCucumberConfigFile(rootPath: string): { path: string; ext: string }
   return undefined;
 }
 
-async function parseCucumberConfig(filePath: string, ext: string): Promise<any> {
-  if (ext === '.js' || ext === '.cjs') {
-    // CommonJS require
-    delete require.cache[require.resolve(filePath)];
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require(filePath);
-  } else if (ext === '.mjs') {
+async function parseCucumberConfig(filePath: string, extension: string): Promise<any> {
+  if (extension === '.js' || extension === '.cjs') {
+    // CommonJS require - using dynamic import instead
+    const imported = await import(pathToFileURL(filePath).href);
+    return imported.default || imported;
+  } else if (extension === '.mjs') {
     // ESM dynamic import
     const imported = await import(pathToFileURL(filePath).href);
     // Prefer default export
     return imported.default || imported;
   } else {
     const fileContent = await fs.promises.readFile(filePath, 'utf8');
-    if (ext === '.json') {
+    if (extension === '.json') {
       try {
         return JSON.parse(fileContent);
-      } catch (e) {
-        throw new Error(`Nie można sparsować pliku ${filePath} jako JSON: ${(e as Error).message}`);
+      } catch (error) {
+        throw new Error(
+          `Nie można sparsować pliku ${filePath} jako JSON: ${(error as Error).message}`
+        );
       }
-    } else if (ext === '.yaml' || ext === '.yml') {
+    } else if (extension === '.yaml' || extension === '.yml') {
       return load(fileContent);
     }
   }
@@ -64,21 +66,37 @@ function extractDefaultAndRemovePaths(config: any): any {
 
 async function writeConfigFile(
   rootPath: string,
-  ext: string,
+  extension: string,
   config: any,
   outFileName?: string
 ): Promise<string> {
-  const outName = outFileName || `cucumber${ext}-test-runner${ext}`;
+  const outName = outFileName || `cucumber${extension}-test-runner${extension}`;
   const outPath = path.join(rootPath, outName);
   let outContent = '';
-  if (ext === '.json') {
-    outContent = JSON.stringify(config, null, 2);
-  } else if (ext === '.js' || ext === '.cjs') {
-    outContent = 'module.exports = ' + JSON.stringify(config, null, 2) + ';\n';
-  } else if (ext === '.mjs') {
-    outContent = 'export default ' + JSON.stringify(config, null, 2) + ';\n';
-  } else if (ext === '.yaml' || ext === '.yml') {
-    outContent = dump(config);
+  switch (extension) {
+    case '.json': {
+      outContent = JSON.stringify(config, undefined, 2);
+
+      break;
+    }
+    case '.js':
+    case '.cjs': {
+      outContent = 'module.exports = ' + JSON.stringify(config, undefined, 2) + ';\n';
+
+      break;
+    }
+    case '.mjs': {
+      outContent = 'export default ' + JSON.stringify(config, undefined, 2) + ';\n';
+
+      break;
+    }
+    case '.yaml':
+    case '.yml': {
+      outContent = dump(config);
+
+      break;
+    }
+    // No default
   }
   await fs.promises.writeFile(outPath, outContent, 'utf8');
   return outPath;

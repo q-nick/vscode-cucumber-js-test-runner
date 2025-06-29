@@ -1,12 +1,13 @@
+import path from 'node:path';
+
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { CucumberRunner, CucumberRunnerEvent } from './CucumberRunner';
-import { buildTestHierarchy } from './testHierarchyBuilder';
-import { GherkinDocument, TestStepStatus, TestStepFinished } from './zodSchemas';
-import { logRun, timestampToMilliseconds } from './utils';
-import { TestTreeManager } from './TestTreeManager';
-import { CucumberTestRun } from './CucumberTestRun';
-import { CucumberRunnerEventHandler } from './CucumberRunnerEventHandler';
+
+import { CucumberRunner, CucumberRunnerEvent } from './cucumber-runner';
+import { CucumberRunnerEventHandler } from './cucumber-runner-event-handler';
+import { CucumberTestRun } from './cucumber-test-run';
+import { TestTreeManager } from './test-tree-manager';
+import { GherkinDocument, Pickle } from './zod-schemas';
+import { buildTestHierarchy, buildTestHierarchyFromPickles } from './test-hierarchy-builder';
 
 export class CucumberJsTestController {
   public readonly vscodeTestController: vscode.TestController;
@@ -22,7 +23,8 @@ export class CucumberJsTestController {
     );
     this.vscodeTestController.resolveHandler = async (item?: vscode.TestItem) => {
       if (!item) {
-        await this.discoverTests();
+        // await this.discoverTests();
+        await this.discoverTestsFromPickles();
       }
     };
   }
@@ -58,22 +60,23 @@ export class CucumberJsTestController {
 
   private collectTests(item: vscode.TestItem, result: vscode.TestItem[] = []): vscode.TestItem[] {
     result.push(item);
+    // eslint-disable-next-line unicorn/no-array-for-each
     item.children.forEach((child) => this.collectTests(child, result));
     return result;
   }
 
   private buildCucumberArgs(request: vscode.TestRunRequest): string[] {
-    const args: string[] = [];
+    const arguments_: string[] = [];
     if (request.include && request.include.length > 0) {
       for (const test of request.include) {
         if (test.uri) {
           const relativePath = path.relative(this.rootPath, test.uri.fsPath);
           const line = test.range ? `:${test.range.start.line + 1}` : '';
-          args.push(`${relativePath}${line}`);
+          arguments_.push(`${relativePath}${line}`);
         }
       }
     }
-    return args;
+    return arguments_;
   }
 
   public async runTests(
@@ -88,24 +91,30 @@ export class CucumberJsTestController {
     // Zbierz testy do uruchomienia
     const testsToRun: vscode.TestItem[] = [];
     if (request.include) {
-      request.include.forEach((item) => this.collectTests(item, testsToRun));
+      for (const item of request.include) {
+        this.collectTests(item, testsToRun);
+      }
     } else if (this.testTreeManager?.rootTestItem) {
       this.collectTests(this.testTreeManager.rootTestItem, testsToRun);
     }
 
-    testsToRun.forEach((test) => run.started(test));
+    for (const test of testsToRun) {
+      run.started(test);
+    }
     const cucumberTestRun = new CucumberTestRun(testsToRun);
 
     const eventHandlerInstance = new CucumberRunnerEventHandler(cucumberTestRun, run, token);
 
-    const args = this.buildCucumberArgs(request);
-    const useTmpConfig = args.length > 0;
+    const arguments_ = this.buildCucumberArgs(request);
+    const useTemporaryConfig = arguments_.length > 0;
 
-    if (useTmpConfig) {
-      await this.cucumberRunner.runCucumberWithTmpConfig(args, run, eventHandlerInstance.handle);
-    } else {
-      await this.cucumberRunner.runCucumber(args, run, eventHandlerInstance.handle);
-    }
+    await (useTemporaryConfig
+      ? this.cucumberRunner.runCucumberWithTmpConfig(arguments_, run, (event) =>
+          eventHandlerInstance.handle(event)
+        )
+      : this.cucumberRunner.runCucumber(arguments_, run, (event) =>
+          eventHandlerInstance.handle(event)
+        ));
     run.end();
   }
 
@@ -122,6 +131,26 @@ export class CucumberJsTestController {
     );
 
     const hierarchy = buildTestHierarchy(gherkinDocuments);
+    this.testTreeManager?.updateTestItemsFromHierarchy(hierarchy);
+  }
+
+  public async discoverTestsFromPickles(): Promise<void> {
+    const pickles: Pickle[] = [];
+    const gherkinDocuments: GherkinDocument[] = [];
+    await this.cucumberRunner?.runCucumber(
+      ['--dry-run'],
+      undefined,
+      (event: CucumberRunnerEvent) => {
+        if (event && event.type === 'pickle') {
+          pickles.push(event.data);
+        }
+        if (event && event.type === 'gherkinDocument') {
+          gherkinDocuments.push(event.data);
+        }
+      }
+    );
+
+    const hierarchy = buildTestHierarchyFromPickles(pickles, gherkinDocuments);
     this.testTreeManager?.updateTestItemsFromHierarchy(hierarchy);
   }
 }

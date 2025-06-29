@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { logDev } from './utils';
 
 const LocationSchema = z
   .object({
@@ -151,6 +150,12 @@ const TestResultSchema = z
     status: z.enum(['UNKNOWN', 'PASSED', 'SKIPPED', 'PENDING', 'UNDEFINED', 'AMBIGUOUS', 'FAILED']),
     message: z.string().optional(),
     duration: DurationSchema,
+    exception: z
+      .object({
+        type: z.string(),
+        message: z.string(),
+      })
+      .optional(),
   })
   .strict();
 
@@ -202,18 +207,6 @@ const StepMatchArgumentSchema = z
 const StepMatchArgumentsListSchema = z
   .object({
     stepMatchArguments: z.array(StepMatchArgumentSchema),
-  })
-  .strict();
-
-const TestStepResultSchema = z
-  .object({
-    duration: z
-      .object({
-        seconds: z.number(),
-        nanos: z.number(),
-      })
-      .optional(),
-    status: z.string().optional(),
   })
   .strict();
 
@@ -407,29 +400,35 @@ export type CucumberEvent =
   | { type: 'stepDefinition'; data: StepDefinition }
   | { type: 'hook'; data: Hook };
 
-function parseWithZodCatch<T>(schema: z.ZodType<T>, value: unknown, typeName: string): T | null {
+function parseWithZodCatch<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  typeName: string
+): T | undefined {
   try {
     return schema.parse(value);
-  } catch (err) {
-    if (err instanceof z.ZodError) {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       console.error(`[ZOD ERROR] ${typeName}`, {
         received: value,
         expected: typeName,
-        issues: err.issues,
+        issues: error.issues,
       });
     } else {
-      console.error(`[UNKNOWN ERROR] ${typeName}`, err);
+      console.error(`[UNKNOWN ERROR] ${typeName}`, error);
     }
-    return null;
+    return undefined;
   }
 }
 
-export function parseCucumberEvent(event: object | unknown[] | undefined): CucumberEvent | null {
+export function parseCucumberEvent(
+  event: object | unknown[] | undefined
+): CucumberEvent | undefined {
   if (typeof event !== 'object' || event === null || Array.isArray(event)) {
-    return null;
+    return undefined;
   }
 
-  let result: CucumberEvent | null = null;
+  let result: CucumberEvent | undefined = undefined;
 
   if ('gherkinDocument' in event) {
     const data = parseWithZodCatch(

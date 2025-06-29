@@ -1,9 +1,11 @@
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+
 import * as vscode from 'vscode';
-import { spawn } from 'child_process';
-import { logChannel, logDev, logRun, safeJsonParse } from './utils';
-import * as path from 'path';
-import { CucumberEvent, parseCucumberEvent } from './zodSchemas';
-import { cleanAndCopyCucumberConfigAsync } from './CucumberConfigManager';
+
+import { cleanAndCopyCucumberConfigAsync } from './cucumber-config-manager';
+import { logChannel, logDevelopment, logRun, safeJsonParse } from './utilities';
+import { CucumberEvent, GherkinDocument, parseCucumberEvent, Pickle } from './zod-schemas';
 
 export type CucumberRunnerEvent =
   | CucumberEvent
@@ -18,26 +20,31 @@ export class CucumberRunner {
   constructor(private rootPath: string) {}
 
   public runCucumber(
-    args: string[] = [],
+    arguments_: string[] = [],
     run?: vscode.TestRun,
-    eventCallback?: (event: CucumberRunnerEvent) => void
-  ): Promise<number> {
-    const fullArgs = [...args, '--format', 'message'];
-    return new Promise((resolve, reject) => {
-      logDev('cucumber-js ' + fullArgs.join(' '));
-      logRun('cucumber-js ' + fullArgs.join(' '), run);
 
-      const cucumberProcess = spawn('npx', ['cucumber-js', ...fullArgs], {
+    eventCallback?: (event: CucumberRunnerEvent) => void,
+    _eventCallbacks?: {
+      all?: (event: CucumberRunnerEvent) => void;
+      gherkinDocuments?: (event: GherkinDocument) => void;
+      pickles?: (event: Pickle) => void;
+    }
+  ): Promise<number> {
+    const fullArguments = [...arguments_, '--format', 'message'];
+    const fireEvent = (event: CucumberRunnerEvent) => {
+      if (eventCallback) {
+        eventCallback(event);
+      }
+      this.onEventEmitter.fire(event);
+    };
+    return new Promise((resolve, reject) => {
+      logDevelopment('cucumber-js ' + fullArguments.join(' '));
+      logRun('cucumber-js ' + fullArguments.join(' '), run);
+
+      const cucumberProcess = spawn('npx', ['cucumber-js', ...fullArguments], {
         cwd: this.rootPath,
         shell: true,
       });
-
-      const fireEvent = (event: CucumberRunnerEvent) => {
-        if (eventCallback) {
-          eventCallback(event);
-        }
-        this.onEventEmitter.fire(event);
-      };
 
       cucumberProcess.stdout.on('data', (data) => {
         const lines = data.toString().split(/\r?\n/);
@@ -50,7 +57,7 @@ export class CucumberRunner {
           const cucumberEvent = parseCucumberEvent(parsedJson);
 
           if (cucumberEvent) {
-            logDev(cucumberEvent);
+            logDevelopment(cucumberEvent);
             fireEvent(cucumberEvent);
           } else {
             logRun(line, run);
@@ -60,7 +67,7 @@ export class CucumberRunner {
 
       cucumberProcess.stderr.on('data', (data) => {
         fireEvent({ type: 'stderr', data: data.toString() });
-        logDev(data.toString());
+        logDevelopment(data.toString());
         logChannel(data.toString());
       });
 
@@ -69,27 +76,27 @@ export class CucumberRunner {
         resolve(code ?? 0);
       });
 
-      cucumberProcess.on('error', (err) => {
-        fireEvent({ type: 'error', data: err });
-        reject(err);
+      cucumberProcess.on('error', (error) => {
+        fireEvent({ type: 'error', data: error });
+        reject(error);
       });
     });
   }
 
   public async runCucumberWithTmpConfig(
-    args: string[] = [],
+    arguments_: string[] = [],
     run?: vscode.TestRun,
     eventCallback?: (event: CucumberRunnerEvent) => void
   ): Promise<number> {
     // Wygeneruj nowy config na podstawie istniejącego
-    const tmpConfigPath = await cleanAndCopyCucumberConfigAsync(this.rootPath);
+    const temporaryConfigPath = await cleanAndCopyCucumberConfigAsync(this.rootPath);
 
-    const fullArgs = [...args];
+    const fullArguments = [...arguments_];
 
-    if (tmpConfigPath) {
-      fullArgs.push('--config', path.basename(tmpConfigPath));
+    if (temporaryConfigPath) {
+      fullArguments.push('--config', path.basename(temporaryConfigPath));
     }
 
-    return this.runCucumber(fullArgs, run, eventCallback);
+    return this.runCucumber(fullArguments, run, eventCallback);
   }
 }

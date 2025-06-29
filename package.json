@@ -51,16 +51,44 @@
     "workspaceContains:**/*.feature"
   ],
   "scripts": {
-    "build": "npx vsce package"
+    "vsce": "npx vsce package",
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "npm run lint:eslint && npm run lint:tsc && npm run lint:prettier",
+    "lint:eslint": "eslint . --ext .ts,.tsx",
+    "lint:tsc": "tsc --noEmit",
+    "lint:prettier": "prettier --check .",
+    "lint:fix": "npm run lint:eslint -- --fix && prettier --write .",
+    "run": "npm run compile && code --extensionDevelopmentPath=.",
+    "debug": "npm run compile && code --extensionDevelopmentPath=. --disable-extensions"
   },
   "devDependencies": {
+    "@eslint/js": "^9.29.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "18.x",
-    "@types/vscode": "^1.59.0",
-    "typescript": "^5.4.5"
+    "@types/vscode": "1.59.0",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unicorn": "^59.0.1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.0"
   },
   "dependencies": {
     "js-yaml": "^4.1.0",
     "zod": "^3.23.8"
-  }
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/github/stars/q-nick/vscode-cucumber-js-test-runner.svg?style=social",
+      "href": "https://github.com/q-nick/vscode-cucumber-js-test-runner",
+      "description": "GitHub stars"
+    },
+    {
+      "url": "https://img.shields.io/github/license/q-nick/vscode-cucumber-js-test-runner.svg",
+      "href": "https://github.com/q-nick/vscode-cucumber-js-test-runner/blob/main/LICENSE",
+      "description": "License"
+    }
+  ]
 }

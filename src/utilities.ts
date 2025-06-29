@@ -3,9 +3,9 @@ import * as vscode from 'vscode';
 // Kanał logów dla pluginu
 const outputChannel = vscode.window.createOutputChannel('Cucumber JS Test Runner');
 
-export function safeJsonParse(str: string): object | undefined {
+export function safeJsonParse(string_: string): object | undefined {
   try {
-    return JSON.parse(str);
+    return JSON.parse(string_);
   } catch {
     return undefined;
   }
@@ -18,8 +18,8 @@ export function timestampToMilliseconds(timestamp: { seconds: number; nanos: num
   return timestamp.seconds * 1000 + Math.floor(timestamp.nanos / 1_000_000);
 }
 
-export function logDev(message?: any, ...optionalParams: any[]): void {
-  console.log(message, ...optionalParams);
+export function logDevelopment(message?: unknown, ...optionalParameters: unknown[]): void {
+  console.log(message, ...optionalParameters);
 }
 
 export function logChannel(message: string): void {

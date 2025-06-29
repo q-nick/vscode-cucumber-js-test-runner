@@ -1,8 +1,18 @@
 import * as vscode from 'vscode';
-import { TestStepFinished, TestStepStatus } from './zodSchemas';
-import { logRun, timestampToMilliseconds } from './utils';
-import { CucumberTestRun } from './CucumberTestRun';
-import { CucumberRunnerEvent } from './CucumberRunner';
+
+import { CucumberRunnerEvent } from './cucumber-runner';
+import { CucumberTestRun } from './cucumber-test-run';
+import { logDevelopment, logRun, timestampToMilliseconds } from './utilities';
+import {
+  GherkinDocument,
+  Pickle,
+  Step,
+  TestCase,
+  TestCaseFinished,
+  TestCaseStarted,
+  TestStepFinished,
+  TestStepStatus,
+} from './zod-schemas';
 
 export class CucumberRunnerEventHandler {
   private testStepResults: Map<string, TestStepFinished[]> = new Map();
@@ -20,28 +30,34 @@ export class CucumberRunnerEventHandler {
       return;
     }
     switch (event.type) {
-      case 'stdout':
+      case 'stdout': {
         this.handleStdout(event.data);
         break;
-      case 'gherkinDocument':
+      }
+      case 'gherkinDocument': {
         this.handleGherkinDocument(event.data);
         break;
-      case 'pickle':
+      }
+      case 'pickle': {
         this.handlePickle(event.data);
         break;
-      case 'testCase':
+      }
+      case 'testCase': {
         this.handleTestCase(event.data);
         break;
-      case 'testCaseStarted':
+      }
+      case 'testCaseStarted': {
         this.handleTestCaseStarted(event.data);
         break;
-      case 'testStepFinished':
+      }
+      case 'testStepFinished': {
         this.handleTestStepFinished(event.data);
         break;
-      case 'testCaseFinished':
+      }
+      case 'testCaseFinished': {
         this.handleTestCaseFinished(event.data);
         break;
-      // Możesz dodać kolejne eventy tutaj
+      }
     }
   }
 
@@ -49,19 +65,19 @@ export class CucumberRunnerEventHandler {
     logRun(data, this.run);
   }
 
-  private handleGherkinDocument(data: any) {
+  private handleGherkinDocument(data: GherkinDocument) {
     this.cucumberTestRun.addGherkinDocument(data);
   }
 
-  private handlePickle(data: any) {
+  private handlePickle(data: Pickle) {
     this.cucumberTestRun.addPickle(data);
   }
 
-  private handleTestCase(data: any) {
+  private handleTestCase(data: TestCase) {
     this.cucumberTestRun.addTestCase(data);
   }
 
-  private handleTestCaseStarted(data: any) {
+  private handleTestCaseStarted(data: TestCaseStarted) {
     this.cucumberTestRun.addTestCaseStarted(data);
     const test = this.cucumberTestRun.getTestByCaseStartedId(data.id);
     if (test) {
@@ -73,14 +89,14 @@ export class CucumberRunnerEventHandler {
     }
   }
 
-  private handleTestStepFinished(data: TestStepFinished) {
-    const { testCaseStartedId, testStepResult, testStepId } = data;
+  private handleTestStepFinished(error: TestStepFinished) {
+    const { testCaseStartedId, testStepResult, testStepId } = error;
     if (!this.testStepResults.has(testCaseStartedId)) {
       this.testStepResults.set(testCaseStartedId, []);
     }
-    this.testStepResults.get(testCaseStartedId)!.push(data);
+    this.testStepResults.get(testCaseStartedId)!.push(error);
     // Obsługa statusowania pojedynczego kroku (UNDEFINED)
-    if (testStepResult.status === 'UNDEFINED') {
+    if (['FAILED', 'UNDEFINED'].includes(testStepResult.status)) {
       const testCase = this.cucumberTestRun.getTestCaseByTestCaseStartedId(testCaseStartedId);
       const step = this.cucumberTestRun.findStepInGherkinDocumentByTestCaseStartedId(
         testCaseStartedId,
@@ -91,13 +107,13 @@ export class CucumberRunnerEventHandler {
         this.setStepDiagnosticMessage(
           test.uri,
           step,
-          testStepResult.message || testStepResult.status
+          error.testStepResult.message || error.testStepResult.status
         );
       }
     }
   }
 
-  private setStepDiagnosticMessage(uri: vscode.Uri, step: any, message: string) {
+  private setStepDiagnosticMessage(uri: vscode.Uri, step: Step, message: string) {
     const line = step.location.line - 1;
     const column = (step.location.column ? step.location.column - 1 : 0) + step.keyword.length;
     const range = new vscode.Range(line, column, line, column + step.text.length);
@@ -105,22 +121,23 @@ export class CucumberRunnerEventHandler {
     this.diagnostics.set(uri, [diagnostic]);
   }
 
-  private handleTestCaseFinished(data: any) {
+  private handleTestCaseFinished(data: TestCaseFinished) {
     const { testCaseStartedId, timestamp } = data;
     const test = this.cucumberTestRun.getTestByCaseStartedId(testCaseStartedId);
+    logDevelopment(testCaseStartedId, test.id);
     const stepEvents = this.testStepResults.get(testCaseStartedId) || [];
     let scenarioStatus: TestStepStatus = 'PASSED';
-    const testCaseStepStatuses = stepEvents.map((e) => e.testStepResult.status);
+    const testCaseStepStatuses = new Set(stepEvents.map((se) => se.testStepResult.status));
 
-    if (testCaseStepStatuses.includes('FAILED')) {
+    if (testCaseStepStatuses.has('FAILED')) {
       scenarioStatus = 'FAILED';
-    } else if (testCaseStepStatuses.includes('SKIPPED')) {
+    } else if (testCaseStepStatuses.has('SKIPPED')) {
       scenarioStatus = 'SKIPPED';
-    } else if (testCaseStepStatuses.includes('AMBIGUOUS')) {
+    } else if (testCaseStepStatuses.has('AMBIGUOUS')) {
       scenarioStatus = 'FAILED';
-    } else if (testCaseStepStatuses.includes('PENDING')) {
+    } else if (testCaseStepStatuses.has('PENDING')) {
       scenarioStatus = 'SKIPPED';
-    } else if (testCaseStepStatuses.includes('UNDEFINED')) {
+    } else if (testCaseStepStatuses.has('UNDEFINED')) {
       scenarioStatus = 'FAILED';
     }
 
@@ -132,24 +149,35 @@ export class CucumberRunnerEventHandler {
 
     if (test) {
       const feature = this.cucumberTestRun.getFeatureByTestCaseStartedId(testCaseStartedId);
-      if (scenarioStatus === 'FAILED') {
-        logRun(
-          `🔴 (failed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-          this.run
-        );
-        this.run.failed(test, [], duration);
-      } else if (scenarioStatus === 'SKIPPED') {
-        logRun(
-          `⚪ (skipped) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-          this.run
-        );
-        this.run.skipped(test);
-      } else if (scenarioStatus === 'PASSED') {
-        logRun(
-          `🟢 (passed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
-          this.run
-        );
-        this.run.passed(test, duration);
+      switch (scenarioStatus) {
+        case 'FAILED': {
+          logRun(
+            `🔴 (failed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+            this.run
+          );
+          this.run.failed(test, [], duration);
+
+          break;
+        }
+        case 'SKIPPED': {
+          logRun(
+            `⚪ (skipped) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+            this.run
+          );
+          this.run.skipped(test);
+
+          break;
+        }
+        case 'PASSED': {
+          logRun(
+            `🟢 (passed) Feature: "${feature.name ?? 'Unknown'}" - Scenario: "${test.label}"`,
+            this.run
+          );
+          this.run.passed(test, duration);
+
+          break;
+        }
+        // No default
       }
     }
   }

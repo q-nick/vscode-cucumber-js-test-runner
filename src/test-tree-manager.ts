@@ -1,7 +1,9 @@
+import path from 'node:path';
+
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { HierarchyNode } from './testHierarchyBuilder';
-import { logDev } from './utils';
+
+import { HierarchyNode } from './test-hierarchy-builder';
+import { logDevelopment } from './utilities';
 
 export class TestTreeManager {
   private testController: vscode.TestController;
@@ -27,7 +29,10 @@ export class TestTreeManager {
       this.createRootTestItem();
     }
 
-    this.rootTestItem?.children.forEach((item) => this.rootTestItem?.children.delete(item.id));
+    if (this.rootTestItem && this.rootTestItem.children) {
+      // eslint-disable-next-line unicorn/no-array-for-each
+      this.rootTestItem.children.forEach((item) => this.rootTestItem!.children.delete(item.id));
+    }
 
     for (const node of hierarchy.children ?? []) {
       this.addNode(node, this.rootTestItem!);
@@ -39,9 +44,10 @@ export class TestTreeManager {
       ? vscode.Uri.file(path.isAbsolute(node.uri) ? node.uri : path.join(this.rootPath, node.uri))
       : vscode.Uri.file(this.rootPath);
 
-    logDev('[id] ' + node.id);
+    logDevelopment('[id] ' + node.id);
 
     const item = this.testController.createTestItem(node.id, node.name, itemUri);
+    item.description = node.id;
     if (node.line) {
       item.range = new vscode.Range(
         new vscode.Position(node.line - 1, 0),
