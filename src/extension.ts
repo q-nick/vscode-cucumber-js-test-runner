@@ -42,11 +42,10 @@ export async function activate(context: vscode.ExtensionContext) {
   // Add FileSystemWatcher for .feature files
   const featureWatcher = vscode.workspace.createFileSystemWatcher('**/*.feature');
   context.subscriptions.push(featureWatcher);
-  featureWatcher.onDidCreate(() => controller.discoverTests());
-  featureWatcher.onDidDelete(() => controller.discoverTests());
+  featureWatcher.onDidCreate(() => controller.discoverTestsFromPickles());
+  featureWatcher.onDidDelete(() => controller.discoverTestsFromPickles());
 
   controller.initializeWorkspace();
-  // await controller.discoverTests();
   await controller.discoverTestsFromPickles();
 
   logDevelopment('vscode-cucumber-js-test-runner activated');

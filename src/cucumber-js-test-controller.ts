@@ -5,9 +5,9 @@ import * as vscode from 'vscode';
 import { CucumberRunner, CucumberRunnerEvent } from './cucumber-runner';
 import { CucumberRunnerEventHandler } from './cucumber-runner-event-handler';
 import { CucumberTestRun } from './cucumber-test-run';
+import { buildTestHierarchyFromPickles } from './test-hierarchy-builder';
 import { TestTreeManager } from './test-tree-manager';
 import { GherkinDocument, Pickle } from './zod-schemas';
-import { buildTestHierarchy, buildTestHierarchyFromPickles } from './test-hierarchy-builder';
 
 export class CucumberJsTestController {
   public readonly vscodeTestController: vscode.TestController;
@@ -116,22 +116,6 @@ export class CucumberJsTestController {
           eventHandlerInstance.handle(event)
         ));
     run.end();
-  }
-
-  public async discoverTests(): Promise<void> {
-    const gherkinDocuments: GherkinDocument[] = [];
-    await this.cucumberRunner?.runCucumber(
-      ['--dry-run'],
-      undefined,
-      (event: CucumberRunnerEvent) => {
-        if (event && event.type === 'gherkinDocument') {
-          gherkinDocuments.push(event.data);
-        }
-      }
-    );
-
-    const hierarchy = buildTestHierarchy(gherkinDocuments);
-    this.testTreeManager?.updateTestItemsFromHierarchy(hierarchy);
   }
 
   public async discoverTestsFromPickles(): Promise<void> {
