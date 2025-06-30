@@ -93,13 +93,42 @@ const BackgroundSchema = z
 
 export type Background = z.infer<typeof BackgroundSchema>;
 
-const FeatureChildSchema = z
+const FeatureChildSchema = z.lazy(() =>
+  z
+    .object({
+      scenario: ScenarioSchema.optional(),
+      background: BackgroundSchema.optional(),
+      rule: RuleSchema.optional(),
+    })
+    .strict()
+);
+
+export type FeatureChild = z.infer<typeof FeatureChildSchema>;
+
+export type RuleBase = z.infer<typeof RuleBaseSchema>;
+
+export interface Rule extends RuleBase {
+  children: FeatureChild[];
+}
+
+export type Location = z.infer<typeof LocationSchema>;
+
+const RuleBaseSchema = z
   .object({
-    scenario: ScenarioSchema.optional(),
-    background: BackgroundSchema.optional(),
-    rule: z.any().optional(),
+    id: z.string(),
+    keyword: z.string(),
+    name: z.string(),
+    description: z.string(),
+    location: LocationSchema,
+    tags: z.array(TagSchema).optional(),
   })
   .strict();
+
+const RuleSchema: z.ZodType<Rule> = z.lazy(() =>
+  RuleBaseSchema.extend({
+    children: z.array(FeatureChildSchema),
+  })
+);
 
 const FeatureSchema = z
   .object({
