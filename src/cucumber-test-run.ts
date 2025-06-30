@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 
-import { logDevelopment } from './utilities';
 import { Feature, GherkinDocument, Pickle, Step, TestCase, TestCaseStarted } from './zod-schemas';
 
 export class CucumberTestRun {
@@ -97,7 +96,8 @@ export class CucumberTestRun {
   private findTestByPickleAndAstNodeIds(pickle: Pickle): vscode.TestItem | undefined {
     // Try all astNodeIds to find which one returns a valid test
     if (pickle.astNodeIds && pickle.astNodeIds.length > 0) {
-      for (const astNodeId of pickle.astNodeIds) {
+      for (let i = pickle.astNodeIds.length - 1; i >= 0; i--) {
+        const astNodeId = pickle.astNodeIds[i];
         const line = this.getLineFromAstNodeId(astNodeId);
         if (line !== undefined) {
           const testId = `${pickle.uri}:${line}`;

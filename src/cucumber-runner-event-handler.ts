@@ -124,21 +124,21 @@ export class CucumberRunnerEventHandler {
   private handleTestCaseFinished(data: TestCaseFinished) {
     const { testCaseStartedId, timestamp } = data;
     const test = this.cucumberTestRun.getTestByCaseStartedId(testCaseStartedId);
-    logDevelopment(testCaseStartedId, test.id);
+
     const stepEvents = this.testStepResults.get(testCaseStartedId) || [];
     let scenarioStatus: TestStepStatus = 'PASSED';
     const testCaseStepStatuses = new Set(stepEvents.map((se) => se.testStepResult.status));
 
     if (testCaseStepStatuses.has('FAILED')) {
       scenarioStatus = 'FAILED';
-    } else if (testCaseStepStatuses.has('SKIPPED')) {
-      scenarioStatus = 'SKIPPED';
-    } else if (testCaseStepStatuses.has('AMBIGUOUS')) {
-      scenarioStatus = 'FAILED';
-    } else if (testCaseStepStatuses.has('PENDING')) {
-      scenarioStatus = 'SKIPPED';
     } else if (testCaseStepStatuses.has('UNDEFINED')) {
       scenarioStatus = 'FAILED';
+    } else if (testCaseStepStatuses.has('AMBIGUOUS')) {
+      scenarioStatus = 'FAILED';
+    } else if (testCaseStepStatuses.has('SKIPPED')) {
+      scenarioStatus = 'SKIPPED';
+    } else if (testCaseStepStatuses.has('PENDING')) {
+      scenarioStatus = 'SKIPPED';
     }
 
     // Szukamy testCaseStarted w cucumberTestRun

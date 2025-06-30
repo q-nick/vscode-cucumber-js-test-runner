@@ -1,4 +1,3 @@
-import { logDevelopment } from './utilities';
 import { GherkinDocument, Pickle } from './zod-schemas';
 
 export interface HierarchyNode {
