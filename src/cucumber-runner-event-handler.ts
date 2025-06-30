@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { CucumberRunnerEvent } from './cucumber-runner';
 import { CucumberTestRun } from './cucumber-test-run';
-import { logDevelopment, logRun, timestampToMilliseconds } from './utilities';
+import { logRun, timestampToMilliseconds } from './utilities';
 import {
   GherkinDocument,
   Pickle,
@@ -16,12 +16,12 @@ import {
 
 export class CucumberRunnerEventHandler {
   private testStepResults: Map<string, TestStepFinished[]> = new Map();
-  private diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
 
   constructor(
     private cucumberTestRun: CucumberTestRun,
     private run: vscode.TestRun,
-    private token: vscode.CancellationToken
+    private token: vscode.CancellationToken,
+    private diagnostics: vscode.DiagnosticCollection
   ) {}
 
   public handle(event: CucumberRunnerEvent) {
@@ -149,6 +149,7 @@ export class CucumberRunnerEventHandler {
 
     if (test) {
       const feature = this.cucumberTestRun.getFeatureByTestCaseStartedId(testCaseStartedId);
+
       switch (scenarioStatus) {
         case 'FAILED': {
           logRun(

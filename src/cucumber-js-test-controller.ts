@@ -14,6 +14,7 @@ export class CucumberJsTestController {
   private rootPath: string;
   private testTreeManager?: TestTreeManager;
   private cucumberRunner?: CucumberRunner;
+  public readonly diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
 
   constructor() {
     this.rootPath = '';
@@ -101,9 +102,14 @@ export class CucumberJsTestController {
     for (const test of testsToRun) {
       run.started(test);
     }
-    const cucumberTestRun = new CucumberTestRun(testsToRun);
+    const cucumberTestRun = new CucumberTestRun(testsToRun, this.diagnostics);
 
-    const eventHandlerInstance = new CucumberRunnerEventHandler(cucumberTestRun, run, token);
+    const eventHandlerInstance = new CucumberRunnerEventHandler(
+      cucumberTestRun,
+      run,
+      token,
+      this.diagnostics
+    );
 
     const arguments_ = this.buildCucumberArgs(request);
     const useTemporaryConfig = arguments_.length > 0;

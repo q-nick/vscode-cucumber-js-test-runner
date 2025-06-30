@@ -9,7 +9,17 @@ export class CucumberTestRun {
   private testCasesStarted: TestCaseStarted[] = [];
   private astNodeIdToLocation: Record<string, { uri: string; line: number; name: string }> = {};
 
-  constructor(private testsToRun: vscode.TestItem[]) {}
+  constructor(
+    private testsToRun: vscode.TestItem[],
+    private diagnostics: vscode.DiagnosticCollection
+  ) {
+    // Wyczyść diagnostyki dla każdego pliku testowego na początku runa
+    for (const test of testsToRun) {
+      if (test.uri) {
+        this.diagnostics.delete(test.uri);
+      }
+    }
+  }
 
   addGherkinDocument(document: GherkinDocument): void {
     this.gherkinDocuments.push(document);
