@@ -4,8 +4,8 @@ export interface HierarchyNode {
   id: string;
   name: string;
   children: HierarchyNode[];
-  uri?: string;
-  line?: number;
+  uri?: string | undefined;
+  line?: number | undefined;
 }
 
 export function buildNodeId(parentId: string, name: string): string {
@@ -29,6 +29,26 @@ export function buildTestHierarchyFromPickles(
     astNodeIdToLocation[id] = { uri, line, name };
   };
 
+  // Helper function to add scenario and its examples/tableBody to location mapping
+  function addScenarioAndExamplesLocationMapping(scenario: any, uri: string) {
+    addLocationMapping(scenario.id, uri, scenario.location.line, scenario.name);
+    if (scenario.examples) {
+      for (const ex of scenario.examples) {
+        addLocationMapping(ex.id, uri, ex.location.line, ex.name || scenario.name);
+        if (ex.tableBody) {
+          for (const row of ex.tableBody) {
+            addLocationMapping(
+              row.id,
+              uri,
+              row.location.line,
+              `${ex.name || scenario.name}:${row.location.line}`
+            );
+          }
+        }
+      }
+    }
+  }
+
   // Build astNodeId mapping
   for (const document of gherkinDocuments) {
     const { uri, feature } = document;
@@ -38,29 +58,23 @@ export function buildTestHierarchyFromPickles(
 
     for (const child of feature.children) {
       if (child.scenario) {
-        const { scenario } = child;
-        addLocationMapping(scenario.id, uri, scenario.location.line, scenario.name);
-
-        if (scenario.examples) {
-          for (const ex of scenario.examples) {
-            addLocationMapping(ex.id, uri, ex.location.line, ex.name || scenario.name);
-
-            if (ex.tableBody) {
-              for (const row of ex.tableBody) {
-                addLocationMapping(
-                  row.id,
-                  uri,
-                  row.location.line,
-                  `${ex.name || scenario.name}:${row.location.line}`
-                );
-              }
-            }
-          }
-        }
+        addScenarioAndExamplesLocationMapping(child.scenario, uri);
       }
       if (child.background) {
         const { background } = child;
         addLocationMapping(background.id, uri, background.location.line, background.name);
+      }
+      if (child.rule) {
+        const { rule } = child;
+        for (const ruleChild of rule.children) {
+          if (ruleChild.scenario) {
+            addScenarioAndExamplesLocationMapping(ruleChild.scenario, uri);
+          }
+          if (ruleChild.background) {
+            const { background } = ruleChild;
+            addLocationMapping(background.id, uri, background.location.line, background.name);
+          }
+        }
       }
     }
   }
@@ -149,6 +163,8 @@ export function buildTestHierarchyFromPickles(
     return outlineNode;
   };
 
+  // console.log('pickles', pickles);
+  // console.log('astNodeIdToLocation', astNodeIdToLocation);
   // Group pickles by URI
   const picklesByUri: Record<string, Pickle[]> = {};
   for (const pickle of pickles) {
@@ -158,7 +174,6 @@ export function buildTestHierarchyFromPickles(
   // Process each URI
   for (const [uri, uriPickles] of Object.entries(picklesByUri)) {
     const featureNode = createFolderHierarchy(uri);
-
     // Group pickles by common astNodeIds
     const picklesByAstNodeIds: Record<string, Pickle[]> = {};
 

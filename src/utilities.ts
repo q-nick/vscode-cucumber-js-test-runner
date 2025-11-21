@@ -1,7 +1,11 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 // Kanał logów dla pluginu
-const outputChannel = vscode.window.createOutputChannel('Cucumber JS Test Runner');
+let outputChannel: vscode.OutputChannel | undefined;
+
+export function initializeUtilities(vscodeApi: typeof vscode): void {
+  outputChannel = vscodeApi.window.createOutputChannel('Cucumber JS Test Runner');
+}
 
 export function safeJsonParse(string_: string): object | undefined {
   try {
@@ -23,7 +27,9 @@ export function logDevelopment(message?: unknown, ...optionalParameters: unknown
 }
 
 export function logChannel(message: string): void {
-  outputChannel.appendLine(message);
+  if (outputChannel) {
+    outputChannel.appendLine(message);
+  }
 }
 
 export function logRun(message: string, run: vscode.TestRun | undefined): void {

@@ -1,31 +1,42 @@
 import path from 'node:path';
 
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 import { CucumberRunner, CucumberRunnerEvent } from './cucumber-runner';
 import { CucumberRunnerEventHandler } from './cucumber-runner-event-handler';
 import { CucumberTestRun } from './cucumber-test-run';
-import { buildTestHierarchyFromPickles } from './test-hierarchy-builder';
+import { buildTestHierarchyFromGherkinDocuments } from './test-hierarchy-builder-documents';
 import { TestTreeManager } from './test-tree-manager';
 import { GherkinDocument, Pickle } from './zod-schemas';
+
+// Interface for dependencies - entire VS Code API object
+export interface CucumberJsTestControllerDependencies {
+  vscode: typeof vscode;
+  workspaceRootPathProvider: () => string | undefined;
+}
 
 export class CucumberJsTestController {
   public readonly vscodeTestController: vscode.TestController;
   private rootPath: string;
-  private testTreeManager?: TestTreeManager;
+  public testTreeManager?: TestTreeManager;
   private cucumberRunner?: CucumberRunner;
-  public readonly diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
+  public readonly diagnostics: vscode.DiagnosticCollection;
+  private workspaceRootPathProvider: () => string | undefined;
+  private vscode: typeof vscode;
 
-  constructor() {
+  constructor(dependencies: CucumberJsTestControllerDependencies) {
     this.rootPath = '';
-    this.vscodeTestController = vscode.tests.createTestController(
+    this.vscode = dependencies.vscode;
+    this.vscodeTestController = this.vscode.tests.createTestController(
       'cucumber-js-test-controller',
       'Cucumber.js Tests'
     );
+    this.diagnostics = this.vscode.languages.createDiagnosticCollection('cucumber');
+    this.workspaceRootPathProvider = dependencies.workspaceRootPathProvider;
+
     this.vscodeTestController.resolveHandler = async (item?: vscode.TestItem) => {
       if (!item) {
-        // await this.discoverTests();
-        await this.discoverTestsFromPickles();
+        await this.discoverTests();
       }
     };
   }
@@ -33,28 +44,24 @@ export class CucumberJsTestController {
   public refresh() {}
 
   public initializeWorkspace(): void {
-    this.rootPath = this.getWorkspaceRootPath() || '';
+    this.rootPath = this.workspaceRootPathProvider() || '';
     if (!this.rootPath) {
       this.vscodeTestController.items.replace([]);
       return;
     }
-    this.testTreeManager = new TestTreeManager(this.vscodeTestController, this.rootPath);
+    this.testTreeManager = new TestTreeManager(
+      this.vscode,
+      this.vscodeTestController,
+      this.rootPath
+    );
     this.testTreeManager.createRootTestItem();
-    this.cucumberRunner = new CucumberRunner(this.rootPath);
+    this.cucumberRunner = new CucumberRunner(this.vscode, this.rootPath);
     this.initializeCucumber();
   }
 
-  private getWorkspaceRootPath(): string | undefined {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders && workspaceFolders.length > 0) {
-      return workspaceFolders[0].uri.fsPath;
-    }
-    return undefined;
-  }
-
   public initializeCucumber(): void {
-    if (!this.cucumberRunner) {
-      this.cucumberRunner = new CucumberRunner(this.rootPath);
+    if (!this.cucumberRunner && this.rootPath) {
+      this.cucumberRunner = new CucumberRunner(this.vscode, this.rootPath);
     }
     // this.cucumberRunner.onEvent((event: CucumberRunnerEvent) => {});
   }
@@ -105,6 +112,7 @@ export class CucumberJsTestController {
     const cucumberTestRun = new CucumberTestRun(testsToRun, this.diagnostics);
 
     const eventHandlerInstance = new CucumberRunnerEventHandler(
+      this.vscode,
       cucumberTestRun,
       run,
       token,
@@ -124,7 +132,7 @@ export class CucumberJsTestController {
     run.end();
   }
 
-  public async discoverTestsFromPickles(): Promise<void> {
+  public async discoverTests(): Promise<void> {
     const pickles: Pickle[] = [];
     const gherkinDocuments: GherkinDocument[] = [];
     await this.cucumberRunner?.runCucumber(
@@ -140,7 +148,14 @@ export class CucumberJsTestController {
       }
     );
 
-    const hierarchy = buildTestHierarchyFromPickles(pickles, gherkinDocuments);
+    const hierarchy = buildTestHierarchyFromGherkinDocuments(gherkinDocuments);
+
+    for (const pickle of pickles) {
+      if (pickle.astNodeIds && pickle.astNodeIds.length > 0) {
+        hierarchy.updateNameByAstNodeIds(pickle.astNodeIds, pickle.name);
+      }
+    }
+
     this.testTreeManager?.updateTestItemsFromHierarchy(hierarchy);
   }
 }

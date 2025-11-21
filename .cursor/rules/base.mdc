@@ -1,16 +1,14 @@
 ---
-description: 
-globs: 
-alwaysApply: false
----
----
-description: 
-globs: 
+description: Ogólne reguły kodowania i TypeScript
+globs:
 alwaysApply: true
 ---
 
-# Your rule content
+# Ogólne reguły kodowania
 
 - Zawsze używaj klamer przy warunkach, pętlach, funkcjach w kodzie, ale nie wymuszaj ich w arrow functions.
+- Zawsze pisz w typescript w składni dla node24
 - W typescript nie używaj typu any i as.
 - nie usuwaj komentarzy z kodu
+- Zawsze odpowiadaj po polsku.
+- Nie używaj bloków try-catch w kodzie.

@@ -1,16 +1,18 @@
 import path from 'node:path';
 
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 import { HierarchyNode } from './test-hierarchy-builder';
 import { logDevelopment } from './utilities';
 
 export class TestTreeManager {
+  private vscode: typeof vscode;
   private testController: vscode.TestController;
   private rootPath: string;
   public rootTestItem?: vscode.TestItem;
 
-  constructor(testController: vscode.TestController, rootPath: string) {
+  constructor(vscodeApi: typeof vscode, testController: vscode.TestController, rootPath: string) {
+    this.vscode = vscodeApi;
     this.testController = testController;
     this.rootPath = rootPath;
   }
@@ -19,7 +21,7 @@ export class TestTreeManager {
     this.rootTestItem = this.testController.createTestItem(
       'root',
       path.basename(this.rootPath),
-      vscode.Uri.file(this.rootPath)
+      this.vscode.Uri.file(this.rootPath)
     );
     this.testController.items.add(this.rootTestItem);
   }
@@ -41,17 +43,19 @@ export class TestTreeManager {
 
   private addNode(node: HierarchyNode, parent: vscode.TestItem) {
     const itemUri = node.uri
-      ? vscode.Uri.file(path.isAbsolute(node.uri) ? node.uri : path.join(this.rootPath, node.uri))
-      : vscode.Uri.file(this.rootPath);
+      ? this.vscode.Uri.file(
+          path.isAbsolute(node.uri) ? node.uri : path.join(this.rootPath, node.uri)
+        )
+      : this.vscode.Uri.file(this.rootPath);
 
     logDevelopment('[id] ' + node.id);
 
     const item = this.testController.createTestItem(node.id, node.name, itemUri);
     item.description = node.id;
     if (node.line) {
-      item.range = new vscode.Range(
-        new vscode.Position(node.line - 1, 0),
-        new vscode.Position(node.line - 1, node.name.length)
+      item.range = new this.vscode.Range(
+        new this.vscode.Position(node.line - 1, 0),
+        new this.vscode.Position(node.line - 1, node.name.length)
       );
     }
     parent.children.add(item);

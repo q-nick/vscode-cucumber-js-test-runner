@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 import { cleanAndCopyCucumberConfigAsync } from './cucumber-config-manager';
 import { logChannel, logDevelopment, logRun, safeJsonParse } from './utilities';
@@ -14,10 +14,16 @@ export type CucumberRunnerEvent =
   | { type: 'error'; data: Error };
 
 export class CucumberRunner {
-  private onEventEmitter = new vscode.EventEmitter<CucumberRunnerEvent>();
-  public readonly onEvent = this.onEventEmitter.event;
+  private onEventEmitter: vscode.EventEmitter<CucumberRunnerEvent>;
+  public readonly onEvent: vscode.Event<CucumberRunnerEvent>;
 
-  constructor(private rootPath: string) {}
+  constructor(
+    vscodeApi: typeof vscode,
+    private rootPath: string
+  ) {
+    this.onEventEmitter = new vscodeApi.EventEmitter<CucumberRunnerEvent>();
+    this.onEvent = this.onEventEmitter.event;
+  }
 
   public runCucumber(
     arguments_: string[] = [],
