@@ -1,0 +1,1 @@
+Feature: Nie mam scenariuszy

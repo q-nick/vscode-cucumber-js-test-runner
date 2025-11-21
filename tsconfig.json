@@ -13,7 +13,9 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true
   },
   "exclude": ["node_modules", ".vscode-test"]
 }

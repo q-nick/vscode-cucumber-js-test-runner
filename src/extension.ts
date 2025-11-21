@@ -1,13 +1,17 @@
 import * as vscode from 'vscode';
 
 import { CucumberJsTestController } from './cucumber-js-test-controller';
-import { logChannel, logDevelopment } from './utilities';
+import { initializeUtilities, logChannel, logDevelopment } from './utilities';
 
 export async function activate(context: vscode.ExtensionContext) {
+  initializeUtilities(vscode);
   logDevelopment('vscode-cucumber-js-test-runner init');
   logChannel('vscode-cucumber-js-test-runner init');
 
-  const controller = new CucumberJsTestController();
+  const controller = new CucumberJsTestController({
+    vscode: vscode,
+    workspaceRootPathProvider: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+  });
 
   context.subscriptions.push(
     controller.vscodeTestController,
@@ -42,11 +46,11 @@ export async function activate(context: vscode.ExtensionContext) {
   // Add FileSystemWatcher for .feature files
   const featureWatcher = vscode.workspace.createFileSystemWatcher('**/*.feature');
   context.subscriptions.push(featureWatcher);
-  featureWatcher.onDidCreate(() => controller.discoverTestsFromPickles());
-  featureWatcher.onDidDelete(() => controller.discoverTestsFromPickles());
+  featureWatcher.onDidCreate(() => controller.discoverTests());
+  featureWatcher.onDidDelete(() => controller.discoverTests());
 
   controller.initializeWorkspace();
-  await controller.discoverTestsFromPickles();
+  await controller.discoverTests();
 
   logDevelopment('vscode-cucumber-js-test-runner activated');
   logChannel('vscode-cucumber-js-test-runner activated');

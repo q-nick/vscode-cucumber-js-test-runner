@@ -1,0 +1,10 @@
+---
+description: Reguły dotyczące workflow i narzędzi deweloperskich
+globs:
+alwaysApply: true
+---
+
+# Reguły workflow
+
+- Podczas naprawiania błędów lintera, zawsze najpierw uruchom `npm run lint:fix`, aby zastosować automatyczne poprawki.
+- Po zakończeniu zmian, uruchom `npm run lint:fix`, a następnie sprawdź, czy pozostały jakieś błędy.

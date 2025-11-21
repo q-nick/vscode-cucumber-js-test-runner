@@ -1,0 +1,3 @@
+default:
+  paths: ['./**/*.feature']
+  format: ['progress-bar']

@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 import { CucumberRunnerEvent } from './cucumber-runner';
 import { CucumberTestRun } from './cucumber-test-run';
@@ -15,14 +15,18 @@ import {
 } from './zod-schemas';
 
 export class CucumberRunnerEventHandler {
+  private vscode: typeof vscode;
   private testStepResults: Map<string, TestStepFinished[]> = new Map();
 
   constructor(
+    vscodeApi: typeof vscode,
     private cucumberTestRun: CucumberTestRun,
     private run: vscode.TestRun,
     private token: vscode.CancellationToken,
     private diagnostics: vscode.DiagnosticCollection
-  ) {}
+  ) {
+    this.vscode = vscodeApi;
+  }
 
   public handle(event: CucumberRunnerEvent) {
     if (this.token.isCancellationRequested) {
@@ -116,8 +120,12 @@ export class CucumberRunnerEventHandler {
   private setStepDiagnosticMessage(uri: vscode.Uri, step: Step, message: string) {
     const line = step.location.line - 1;
     const column = (step.location.column ? step.location.column - 1 : 0) + step.keyword.length;
-    const range = new vscode.Range(line, column, line, column + step.text.length);
-    const diagnostic = new vscode.Diagnostic(range, message, vscode.DiagnosticSeverity.Error);
+    const range = new this.vscode.Range(line, column, line, column + step.text.length);
+    const diagnostic = new this.vscode.Diagnostic(
+      range,
+      message,
+      this.vscode.DiagnosticSeverity.Error
+    );
     this.diagnostics.set(uri, [diagnostic]);
   }
 
