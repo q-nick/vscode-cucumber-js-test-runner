@@ -49,10 +49,15 @@
     "configuration": {
       "title": "Cucumber.js Test Runner",
       "properties": {
-        "cucumberJsTestRunner.projectRoot": {
-          "type": "string",
-          "default": ".",
-          "description": "Path to the Cucumber.js project root, relative to the workspace folder. Useful for monorepos where the cucumber project lives in a subdirectory (e.g. \"apps/cucumber-e2e\")."
+        "cucumberJsTestRunner.projectRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "."
+          ],
+          "description": "List of paths to Cucumber.js project roots, relative to the workspace folder. Useful for monorepos with multiple cucumber packages (e.g. [\"apps/e2e\", \"apps/integration\"])."
         }
       }
     }
