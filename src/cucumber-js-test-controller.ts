@@ -47,7 +47,11 @@ export class CucumberJsTestController {
   private getWorkspaceRootPath(): string | undefined {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders && workspaceFolders.length > 0) {
-      return workspaceFolders[0].uri.fsPath;
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+      const projectRoot = vscode.workspace
+        .getConfiguration('cucumberJsTestRunner')
+        .get<string>('projectRoot', '.');
+      return path.join(workspaceRoot, projectRoot);
     }
     return undefined;
   }
