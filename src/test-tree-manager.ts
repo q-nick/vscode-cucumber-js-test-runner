@@ -17,7 +17,7 @@ export class TestTreeManager {
 
   public createRootTestItem() {
     this.rootTestItem = this.testController.createTestItem(
-      'root',
+      this.rootPath,
       path.basename(this.rootPath),
       vscode.Uri.file(this.rootPath)
     );

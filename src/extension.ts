@@ -12,6 +12,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     controller.vscodeTestController,
     vscode.workspace.onDidChangeWorkspaceFolders(() => controller.initializeWorkspace()),
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('cucumberJsTestRunner.projectRoot')) {
+        controller.initializeWorkspace();
+        controller.discoverTestsFromPickles();
+      }
+    }),
     vscode.commands.registerCommand('cucumber-js-test-runner.refreshTests', () => {
       controller.refresh();
     })

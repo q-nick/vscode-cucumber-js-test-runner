@@ -11,20 +11,17 @@ import { GherkinDocument, Pickle } from './zod-schemas';
 
 export class CucumberJsTestController {
   public readonly vscodeTestController: vscode.TestController;
-  private rootPath: string;
-  private testTreeManager?: TestTreeManager;
-  private cucumberRunner?: CucumberRunner;
+  private runners = new Map<string, CucumberRunner>();
+  private treeManagers = new Map<string, TestTreeManager>();
   public readonly diagnostics = vscode.languages.createDiagnosticCollection('cucumber');
 
   constructor() {
-    this.rootPath = '';
     this.vscodeTestController = vscode.tests.createTestController(
       'cucumber-js-test-controller',
       'Cucumber.js Tests'
     );
     this.vscodeTestController.resolveHandler = async (item?: vscode.TestItem) => {
       if (!item) {
-        // await this.discoverTests();
         await this.discoverTestsFromPickles();
       }
     };
@@ -33,30 +30,28 @@ export class CucumberJsTestController {
   public refresh() {}
 
   public initializeWorkspace(): void {
-    this.rootPath = this.getWorkspaceRootPath() || '';
-    if (!this.rootPath) {
-      this.vscodeTestController.items.replace([]);
-      return;
+    this.runners.clear();
+    this.treeManagers.clear();
+    this.vscodeTestController.items.replace([]);
+
+    for (const rootPath of this.getProjectRootPaths()) {
+      const treeManager = new TestTreeManager(this.vscodeTestController, rootPath);
+      treeManager.createRootTestItem();
+      this.treeManagers.set(rootPath, treeManager);
+      this.runners.set(rootPath, new CucumberRunner(rootPath));
     }
-    this.testTreeManager = new TestTreeManager(this.vscodeTestController, this.rootPath);
-    this.testTreeManager.createRootTestItem();
-    this.cucumberRunner = new CucumberRunner(this.rootPath);
-    this.initializeCucumber();
   }
 
-  private getWorkspaceRootPath(): string | undefined {
+  private getProjectRootPaths(): string[] {
     const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders && workspaceFolders.length > 0) {
-      return workspaceFolders[0].uri.fsPath;
-    }
-    return undefined;
-  }
+    if (!workspaceFolders || workspaceFolders.length === 0) return [];
 
-  public initializeCucumber(): void {
-    if (!this.cucumberRunner) {
-      this.cucumberRunner = new CucumberRunner(this.rootPath);
-    }
-    // this.cucumberRunner.onEvent((event: CucumberRunnerEvent) => {});
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const projectRoots = vscode.workspace
+      .getConfiguration('cucumberJsTestRunner')
+      .get<string[]>('projectRoots', ['.']);
+
+    return projectRoots.map((rel) => path.join(workspaceRoot, rel));
   }
 
   private collectTests(item: vscode.TestItem, result: vscode.TestItem[] = []): vscode.TestItem[] {
@@ -66,81 +61,68 @@ export class CucumberJsTestController {
     return result;
   }
 
-  private buildCucumberArgs(request: vscode.TestRunRequest): string[] {
-    const arguments_: string[] = [];
-    if (request.include && request.include.length > 0) {
-      for (const test of request.include) {
-        if (test.uri) {
-          const relativePath = path.relative(this.rootPath, test.uri.fsPath);
-          const line = test.range ? `:${test.range.start.line + 1}` : '';
-          arguments_.push(`${relativePath}${line}`);
-        }
-      }
-    }
-    return arguments_;
-  }
-
   public async runTests(
     request: vscode.TestRunRequest,
     token: vscode.CancellationToken
   ): Promise<void> {
-    if (!this.cucumberRunner) {
-      throw new Error('CucumberRunner is not initialized. Call initializeWorkspace first.');
-    }
     const run = this.vscodeTestController.createTestRun(request);
 
-    // Zbierz testy do uruchomienia
-    const testsToRun: vscode.TestItem[] = [];
+    const allTests: vscode.TestItem[] = [];
     if (request.include) {
-      for (const item of request.include) {
-        this.collectTests(item, testsToRun);
+      for (const item of request.include) this.collectTests(item, allTests);
+    } else {
+      for (const [, treeManager] of this.treeManagers) {
+        if (treeManager.rootTestItem) this.collectTests(treeManager.rootTestItem, allTests);
       }
-    } else if (this.testTreeManager?.rootTestItem) {
-      this.collectTests(this.testTreeManager.rootTestItem, testsToRun);
+    }
+    for (const test of allTests) run.started(test);
+
+    for (const [rootPath, runner] of this.runners) {
+      const rootTests = allTests.filter((t) => t.uri && t.uri.fsPath.startsWith(rootPath));
+      if (rootTests.length === 0 && request.include) continue;
+
+      const cucumberTestRun = new CucumberTestRun(rootTests, this.diagnostics);
+      const eventHandler = new CucumberRunnerEventHandler(
+        cucumberTestRun,
+        run,
+        token,
+        this.diagnostics
+      );
+
+      const selectedItems = request.include
+        ? request.include.filter((t) => !t.uri || t.uri.fsPath.startsWith(rootPath))
+        : [];
+
+      const arguments_: string[] = [];
+      for (const test of selectedItems) {
+        if (test.uri) {
+          const relativePath = path.relative(rootPath, test.uri.fsPath);
+          const line = test.range ? `:${test.range.start.line + 1}` : '';
+          arguments_.push(`${relativePath}${line}`);
+        }
+      }
+
+      const useTemporaryConfig = arguments_.length > 0;
+      await (useTemporaryConfig
+        ? runner.runCucumberWithTmpConfig(arguments_, run, (e) => eventHandler.handle(e))
+        : runner.runCucumber(arguments_, run, (e) => eventHandler.handle(e)));
     }
 
-    for (const test of testsToRun) {
-      run.started(test);
-    }
-    const cucumberTestRun = new CucumberTestRun(testsToRun, this.diagnostics);
-
-    const eventHandlerInstance = new CucumberRunnerEventHandler(
-      cucumberTestRun,
-      run,
-      token,
-      this.diagnostics
-    );
-
-    const arguments_ = this.buildCucumberArgs(request);
-    const useTemporaryConfig = arguments_.length > 0;
-
-    await (useTemporaryConfig
-      ? this.cucumberRunner.runCucumberWithTmpConfig(arguments_, run, (event) =>
-          eventHandlerInstance.handle(event)
-        )
-      : this.cucumberRunner.runCucumber(arguments_, run, (event) =>
-          eventHandlerInstance.handle(event)
-        ));
     run.end();
   }
 
   public async discoverTestsFromPickles(): Promise<void> {
-    const pickles: Pickle[] = [];
-    const gherkinDocuments: GherkinDocument[] = [];
-    await this.cucumberRunner?.runCucumber(
-      ['--dry-run'],
-      undefined,
-      (event: CucumberRunnerEvent) => {
-        if (event && event.type === 'pickle') {
-          pickles.push(event.data);
-        }
-        if (event && event.type === 'gherkinDocument') {
-          gherkinDocuments.push(event.data);
-        }
-      }
-    );
+    for (const [rootPath, runner] of this.runners) {
+      const pickles: Pickle[] = [];
+      const gherkinDocuments: GherkinDocument[] = [];
 
-    const hierarchy = buildTestHierarchyFromPickles(pickles, gherkinDocuments);
-    this.testTreeManager?.updateTestItemsFromHierarchy(hierarchy);
+      await runner.runCucumber(['--dry-run'], undefined, (event: CucumberRunnerEvent) => {
+        if (event?.type === 'pickle') pickles.push(event.data);
+        if (event?.type === 'gherkinDocument') gherkinDocuments.push(event.data);
+      });
+
+      const hierarchy = buildTestHierarchyFromPickles(pickles, gherkinDocuments);
+      this.treeManagers.get(rootPath)?.updateTestItemsFromHierarchy(hierarchy);
+    }
   }
 }
